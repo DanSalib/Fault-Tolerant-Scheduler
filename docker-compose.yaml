@@ -1,0 +1,51 @@
+version: "3.2"
+
+services:
+  mongo_db:
+    build:
+      context: ./
+      dockerfile: ./mongo/Dockerfile
+    restart: always
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: "test"
+      MONGO_INITDB_ROOT_PASSWORD: "123"
+      MONGO_PORT: 27017
+
+  master:
+    build:
+      context: ./
+      dockerfile: ./master/Dockerfile
+    restart: always
+    volumes:
+      - ./logs:/master/master_logs
+    ports:
+      - "8080:8080"
+    environment:
+      MONGO_PORT: 27017
+      MONGO_DOMAIN: "Fault-Tolerant-Scheduler_mongo_db_1"
+      MONGO_USERNAME: "test"
+      MONGO_PASSWORD: "123"
+      TASKS_DB_NAME: "TaskScheduler"
+      TASKS_COLLECTION_NAME: "Tasks"
+    command: python3 ./master/app.py
+    depends_on:
+      - mongo_db
+
+  slave:
+    build:
+      context: ./
+      dockerfile: ./slave/Dockerfile
+    restart: always
+    volumes:
+      - ./logs:/slave/slave_logs
+    environment:
+      MASTER_DOMAIN: "Fault-Tolerant-Scheduler_master_1"
+      MASTER_PORT: 8080
+    command: python3 ./slave/main.py
+    deploy:
+      mode: replicated
+      replicas: 3
+    depends_on:
+      - master
